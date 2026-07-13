@@ -1,0 +1,8 @@
+# debug
+__debug*
+
+# Goland
+.idea/
+
+# Mac
+.DS_Store
