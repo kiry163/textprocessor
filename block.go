@@ -1,4 +1,4 @@
-package textspan
+package textprocessor
 
 import "strings"
 

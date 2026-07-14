@@ -4,14 +4,14 @@
 
 **Goal:** Add a rune-aware API that removes the exact common prefix and suffix from original and revised text, returns the changed original range, and optionally pads insertion-only changes with one context rune.
 
-**Architecture:** Add the stable public API and its focused implementation in the root `textspan` package, following the existing one-capability-per-file organization. The algorithm operates on rune slices, returns a half-open original range, and keeps all behavior in `trim.go` until complexity justifies an `internal/diff` package.
+**Architecture:** Add the stable public API and its focused implementation in the root `textprocessor` package, following the existing one-capability-per-file organization. The algorithm operates on rune slices, returns a half-open original range, and keeps all behavior in `trim.go` until complexity justifies an `internal/diff` package.
 
-**Tech Stack:** Go 1.18 standard library (`errors`, `fmt`), table-driven Go tests, existing root `textspan` package.
+**Tech Stack:** Go 1.18 standard library (`errors`, `fmt`), table-driven Go tests, existing root `textprocessor` package.
 
 ## Global Constraints
 
 - Do not commit or push; the user has not authorized either operation.
-- Keep the public API in package `textspan` at module path `github.com/kiry163/textprocessor`.
+- Keep the public API in package `textprocessor` at module path `github.com/kiry163/textprocessor`.
 - Compare exact runes; do not normalize case, whitespace, punctuation, or Unicode.
 - Report original offsets as a half-open rune range `[Start, End)`, never byte offsets.
 - Default an empty original difference to left-context padding, falling back to right context at the beginning of the original.
@@ -51,7 +51,7 @@ Expected: all existing packages pass before the new tests are added.
 Create `trim_test.go`:
 
 ```go
-package textspan_test
+package textprocessor_test
 
 import (
 	"errors"
@@ -67,81 +67,81 @@ func TestTrimDifference(t *testing.T) {
 		name     string
 		original string
 		revised  string
-		opts     []textspan.TrimOptions
-		want     textspan.TrimResult
+		opts     []textprocessor.TrimOptions
+		want     textprocessor.TrimResult
 	}{
 		{
 			name:     "replacement",
 			original: "abc",
 			revised:  "axc",
-			want:     textspan.TrimResult{Original: "b", Revised: "x", Start: 1, End: 2},
+			want:     textprocessor.TrimResult{Original: "b", Revised: "x", Start: 1, End: 2},
 		},
 		{
 			name:     "deletion",
 			original: "abc",
 			revised:  "ac",
-			want:     textspan.TrimResult{Original: "b", Revised: "", Start: 1, End: 2},
+			want:     textprocessor.TrimResult{Original: "b", Revised: "", Start: 1, End: 2},
 		},
 		{
 			name:     "delete entire original",
 			original: "abc",
 			revised:  "",
-			want:     textspan.TrimResult{Original: "abc", Revised: "", Start: 0, End: 3},
+			want:     textprocessor.TrimResult{Original: "abc", Revised: "", Start: 0, End: 3},
 		},
 		{
 			name:     "complete replacement",
 			original: "甲乙",
 			revised:  "XY",
-			want:     textspan.TrimResult{Original: "甲乙", Revised: "XY", Start: 0, End: 2},
+			want:     textprocessor.TrimResult{Original: "甲乙", Revised: "XY", Start: 0, End: 2},
 		},
 		{
 			name:     "middle insertion explicitly pads left",
 			original: "abc",
 			revised:  "abXc",
-			opts: []textspan.TrimOptions{{
-				EmptyOriginal: textspan.TrimEmptyOriginalPad,
+			opts: []textprocessor.TrimOptions{{
+				EmptyOriginal: textprocessor.TrimEmptyOriginalPad,
 			}},
-			want:     textspan.TrimResult{Original: "b", Revised: "bX", Start: 1, End: 2},
+			want:     textprocessor.TrimResult{Original: "b", Revised: "bX", Start: 1, End: 2},
 		},
 		{
 			name:     "start insertion falls back to right",
 			original: "abc",
 			revised:  "Xabc",
-			want:     textspan.TrimResult{Original: "a", Revised: "Xa", Start: 0, End: 1},
+			want:     textprocessor.TrimResult{Original: "a", Revised: "Xa", Start: 0, End: 1},
 		},
 		{
 			name:     "zero options use default padding",
 			original: "abc",
 			revised:  "abcX",
-			opts:     []textspan.TrimOptions{{}},
-			want:     textspan.TrimResult{Original: "c", Revised: "cX", Start: 2, End: 3},
+			opts:     []textprocessor.TrimOptions{{}},
+			want:     textprocessor.TrimResult{Original: "c", Revised: "cX", Start: 2, End: 3},
 		},
 		{
 			name:     "keep empty insertion range",
 			original: "abc",
 			revised:  "abXc",
-			opts: []textspan.TrimOptions{{
-				EmptyOriginal: textspan.TrimEmptyOriginalKeep,
+			opts: []textprocessor.TrimOptions{{
+				EmptyOriginal: textprocessor.TrimEmptyOriginalKeep,
 			}},
-			want: textspan.TrimResult{Original: "", Revised: "X", Start: 2, End: 2},
+			want: textprocessor.TrimResult{Original: "", Revised: "X", Start: 2, End: 2},
 		},
 		{
 			name:     "emoji uses rune offsets",
 			original: "你🙂好",
 			revised:  "你🙂们好",
-			want:     textspan.TrimResult{Original: "🙂", Revised: "🙂们", Start: 1, End: 2},
+			want:     textprocessor.TrimResult{Original: "🙂", Revised: "🙂们", Start: 1, End: 2},
 		},
 		{
 			name:     "punctuation and whitespace are compared exactly",
 			original: "a， b",
 			revised:  "a！ b",
-			want:     textspan.TrimResult{Original: "，", Revised: "！", Start: 1, End: 2},
+			want:     textprocessor.TrimResult{Original: "，", Revised: "！", Start: 1, End: 2},
 		},
 		{
 			name:     "one rune original supports start insertion",
 			original: "a",
 			revised:  "Xa",
-			want:     textspan.TrimResult{Original: "a", Revised: "Xa", Start: 0, End: 1},
+			want:     textprocessor.TrimResult{Original: "a", Revised: "Xa", Start: 0, End: 1},
 		},
 	}
 
@@ -150,7 +150,7 @@ func TestTrimDifference(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := textspan.TrimDifference(tt.original, tt.revised, tt.opts...)
+			got, err := textprocessor.TrimDifference(tt.original, tt.revised, tt.opts...)
 			if err != nil {
 				t.Fatalf("TrimDifference() error = %v", err)
 			}
@@ -180,35 +180,35 @@ func TestTrimDifferenceErrors(t *testing.T) {
 		name     string
 		original string
 		revised  string
-		opts     []textspan.TrimOptions
+		opts     []textprocessor.TrimOptions
 		want     error
 	}{
 		{
 			name:     "empty original",
 			original: "",
 			revised:  "X",
-			want:     textspan.ErrOriginalEmpty,
+			want:     textprocessor.ErrOriginalEmpty,
 		},
 		{
 			name:     "both inputs empty",
 			original: "",
 			revised:  "",
-			want:     textspan.ErrOriginalEmpty,
+			want:     textprocessor.ErrOriginalEmpty,
 		},
 		{
 			name:     "no change",
 			original: "abc",
 			revised:  "abc",
-			want:     textspan.ErrNoChange,
+			want:     textprocessor.ErrNoChange,
 		},
 		{
 			name:     "invalid strategy",
 			original: "abc",
 			revised:  "axc",
-			opts: []textspan.TrimOptions{{
-				EmptyOriginal: textspan.TrimEmptyOriginalStrategy("invalid"),
+			opts: []textprocessor.TrimOptions{{
+				EmptyOriginal: textprocessor.TrimEmptyOriginalStrategy("invalid"),
 			}},
-			want: textspan.ErrInvalidTrimOptions,
+			want: textprocessor.ErrInvalidTrimOptions,
 		},
 	}
 
@@ -217,7 +217,7 @@ func TestTrimDifferenceErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := textspan.TrimDifference(tt.original, tt.revised, tt.opts...)
+			_, err := textprocessor.TrimDifference(tt.original, tt.revised, tt.opts...)
 			if !errors.Is(err, tt.want) {
 				t.Fatalf("TrimDifference() error = %v, want errors.Is(_, %v)", err, tt.want)
 			}
@@ -242,7 +242,7 @@ and `TrimDifference` are not defined. This is the expected RED state.
 Create `trim.go`:
 
 ```go
-package textspan
+package textprocessor
 
 import (
 	"errors"
@@ -395,8 +395,8 @@ Insert this section immediately before `## CLI` in `README.md`:
 original and revised string, then reports the changed range in the original:
 
 ```go
-result, err := textspan.TrimDifference("abc", "abXc")
-// result == textspan.TrimResult{
+result, err := textprocessor.TrimDifference("abc", "abXc")
+// result == textprocessor.TrimResult{
 //     Original: "b",
 //     Revised:  "bX",
 //     Start:    1,
@@ -414,10 +414,10 @@ uses the shared rune to its right. This default is `TrimEmptyOriginalPad`.
 Preserve the minimal empty range when needed:
 
 ```go
-result, err := textspan.TrimDifference("abc", "abXc", textspan.TrimOptions{
-    EmptyOriginal: textspan.TrimEmptyOriginalKeep,
+result, err := textprocessor.TrimDifference("abc", "abXc", textprocessor.TrimOptions{
+    EmptyOriginal: textprocessor.TrimEmptyOriginalKeep,
 })
-// result == textspan.TrimResult{
+// result == textprocessor.TrimResult{
 //     Original: "",
 //     Revised:  "X",
 //     Start:    2,

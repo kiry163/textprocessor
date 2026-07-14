@@ -36,7 +36,7 @@ empty range instead.
 
 ## Public API
 
-The API will be added to the root `textspan` package in `trim.go`.
+The API will be added to the root `textprocessor` package in `trim.go`.
 
 ```go
 type TrimResult struct {
@@ -160,7 +160,7 @@ textprocessor/
 ├── match.go
 ├── segment.go
 ├── block.go
-├── textspan.go
+├── textprocessor.go
 ├── internal/
 └── cmd/
 ```

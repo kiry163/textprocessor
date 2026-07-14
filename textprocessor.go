@@ -1,4 +1,4 @@
-package textspan
+package textprocessor
 
 import (
 	"github.com/kiry163/textprocessor/internal/lang"

@@ -27,14 +27,14 @@ func run(args []string) error {
 }
 
 func runBlocks(args []string) error {
-	fs := flag.NewFlagSet("textspan blocks", flag.ContinueOnError)
+	fs := flag.NewFlagSet("textprocessor blocks", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	paragraphSplit := fs.String("paragraph-split", string(textspan.ParagraphSplitByLine), "paragraph split mode: line or blank-line")
+	paragraphSplit := fs.String("paragraph-split", string(textprocessor.ParagraphSplitByLine), "paragraph split mode: line or blank-line")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if fs.NArg() != 1 {
-		return fmt.Errorf("usage: textspan blocks [--paragraph-split line|blank-line] <file>")
+		return fmt.Errorf("usage: textprocessor blocks [--paragraph-split line|blank-line] <file>")
 	}
 
 	data, err := os.ReadFile(fs.Arg(0))
@@ -47,7 +47,7 @@ func runBlocks(args []string) error {
 		return err
 	}
 	encoder := json.NewEncoder(os.Stdout)
-	for _, block := range textspan.Blocks(string(data), textspan.BlockOptions{ParagraphSplit: splitMode}) {
+	for _, block := range textprocessor.Blocks(string(data), textprocessor.BlockOptions{ParagraphSplit: splitMode}) {
 		if err := encoder.Encode(block); err != nil {
 			return err
 		}
@@ -55,19 +55,19 @@ func runBlocks(args []string) error {
 	return nil
 }
 
-func parseParagraphSplitMode(mode string) (textspan.ParagraphSplitMode, error) {
+func parseParagraphSplitMode(mode string) (textprocessor.ParagraphSplitMode, error) {
 	switch mode {
-	case string(textspan.ParagraphSplitByLine):
-		return textspan.ParagraphSplitByLine, nil
-	case "blank-line", string(textspan.ParagraphSplitByBlankLine):
-		return textspan.ParagraphSplitByBlankLine, nil
+	case string(textprocessor.ParagraphSplitByLine):
+		return textprocessor.ParagraphSplitByLine, nil
+	case "blank-line", string(textprocessor.ParagraphSplitByBlankLine):
+		return textprocessor.ParagraphSplitByBlankLine, nil
 	default:
 		return "", fmt.Errorf("invalid paragraph split mode %q: use line or blank-line", mode)
 	}
 }
 
 func runSegment(args []string) error {
-	fs := flag.NewFlagSet("textspan", flag.ContinueOnError)
+	fs := flag.NewFlagSet("textprocessor", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	sentencesOnly := fs.Bool("sentences", false, "output one sentence per line")
 	minChineseChars := fs.Int("min-chinese-chars", 50, "minimum Han characters per merged span; <=0 disables merging")
@@ -75,7 +75,7 @@ func runSegment(args []string) error {
 		return err
 	}
 	if fs.NArg() != 1 {
-		return fmt.Errorf("usage: textspan [--sentences] [--min-chinese-chars N] <file>")
+		return fmt.Errorf("usage: textprocessor [--sentences] [--min-chinese-chars N] <file>")
 	}
 
 	data, err := os.ReadFile(fs.Arg(0))
@@ -85,14 +85,14 @@ func runSegment(args []string) error {
 	text := string(data)
 
 	if *sentencesOnly {
-		for _, sentence := range textspan.Sentences(text) {
+		for _, sentence := range textprocessor.Sentences(text) {
 			fmt.Println(sentence)
 		}
 		return nil
 	}
 
 	encoder := json.NewEncoder(os.Stdout)
-	for _, span := range textspan.Segment(text, textspan.SegmentOptions{MinChineseChars: *minChineseChars}) {
+	for _, span := range textprocessor.Segment(text, textprocessor.SegmentOptions{MinChineseChars: *minChineseChars}) {
 		if err := encoder.Encode(span); err != nil {
 			return err
 		}
@@ -101,14 +101,14 @@ func runSegment(args []string) error {
 }
 
 func runMatch(args []string) error {
-	fs := flag.NewFlagSet("textspan match", flag.ContinueOnError)
+	fs := flag.NewFlagSet("textprocessor match", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	mode := fs.String("mode", string(textspan.MatchSmart), "match mode: exact, normalized, or smart")
+	mode := fs.String("mode", string(textprocessor.MatchSmart), "match mode: exact, normalized, or smart")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if fs.NArg() != 2 {
-		return fmt.Errorf("usage: textspan match [--mode exact|normalized|smart] <source-file> <query>")
+		return fmt.Errorf("usage: textprocessor match [--mode exact|normalized|smart] <source-file> <query>")
 	}
 
 	source, err := os.ReadFile(fs.Arg(0))
@@ -122,7 +122,7 @@ func runMatch(args []string) error {
 		return err
 	}
 	encoder := json.NewEncoder(os.Stdout)
-	for _, match := range textspan.Match(string(source), query, textspan.MatchOptions{Mode: matchMode}) {
+	for _, match := range textprocessor.Match(string(source), query, textprocessor.MatchOptions{Mode: matchMode}) {
 		if err := encoder.Encode(match); err != nil {
 			return err
 		}
@@ -130,10 +130,10 @@ func runMatch(args []string) error {
 	return nil
 }
 
-func parseMatchMode(mode string) (textspan.MatchMode, error) {
-	switch textspan.MatchMode(mode) {
-	case textspan.MatchExact, textspan.MatchNormalized, textspan.MatchSmart:
-		return textspan.MatchMode(mode), nil
+func parseMatchMode(mode string) (textprocessor.MatchMode, error) {
+	switch textprocessor.MatchMode(mode) {
+	case textprocessor.MatchExact, textprocessor.MatchNormalized, textprocessor.MatchSmart:
+		return textprocessor.MatchMode(mode), nil
 	default:
 		return "", fmt.Errorf("invalid match mode %q: use exact, normalized, or smart", mode)
 	}

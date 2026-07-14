@@ -1,4 +1,4 @@
-package textspan_test
+package textprocessor_test
 
 import (
 	"reflect"
@@ -10,8 +10,8 @@ import (
 func TestMatchExactReturnsAllExactMatchesWithRuneOffsets(t *testing.T) {
 	source := "前缀 ABC 后缀 ABC"
 
-	got := textspan.Match(source, "ABC", textspan.MatchOptions{Mode: textspan.MatchExact})
-	want := []textspan.MatchResult{
+	got := textprocessor.Match(source, "ABC", textprocessor.MatchOptions{Mode: textprocessor.MatchExact})
+	want := []textprocessor.MatchResult{
 		{Text: "ABC", Start: 3, End: 6},
 		{Text: "ABC", Start: 10, End: 13},
 	}
@@ -24,8 +24,8 @@ func TestMatchExactReturnsAllExactMatchesWithRuneOffsets(t *testing.T) {
 func TestMatchNormalizedIgnoresPunctuationAndWhitespace(t *testing.T) {
 	source := "他说：Hello, world！然后 Hello world。"
 
-	got := textspan.Match(source, "Hello world", textspan.MatchOptions{Mode: textspan.MatchNormalized})
-	want := []textspan.MatchResult{
+	got := textprocessor.Match(source, "Hello world", textprocessor.MatchOptions{Mode: textprocessor.MatchNormalized})
+	want := []textprocessor.MatchResult{
 		{Text: "Hello, world", Start: 3, End: 15},
 		{Text: "Hello world", Start: 19, End: 30},
 	}
@@ -38,8 +38,8 @@ func TestMatchNormalizedIgnoresPunctuationAndWhitespace(t *testing.T) {
 func TestMatchSmartPrefersExactMatches(t *testing.T) {
 	source := "Hello, world. Hello world."
 
-	got := textspan.Match(source, "Hello world", textspan.MatchOptions{Mode: textspan.MatchSmart})
-	want := []textspan.MatchResult{
+	got := textprocessor.Match(source, "Hello world", textprocessor.MatchOptions{Mode: textprocessor.MatchSmart})
+	want := []textprocessor.MatchResult{
 		{Text: "Hello world", Start: 14, End: 25},
 	}
 
@@ -51,8 +51,8 @@ func TestMatchSmartPrefersExactMatches(t *testing.T) {
 func TestMatchSmartFallsBackToNormalizedMatches(t *testing.T) {
 	source := "他说：Hello, world！"
 
-	got := textspan.Match(source, "Hello world")
-	want := []textspan.MatchResult{
+	got := textprocessor.Match(source, "Hello world")
+	want := []textprocessor.MatchResult{
 		{Text: "Hello, world", Start: 3, End: 15},
 	}
 
@@ -64,8 +64,8 @@ func TestMatchSmartFallsBackToNormalizedMatches(t *testing.T) {
 func TestMatchNormalizedRecoversIgnoredQueryEdgeFromSource(t *testing.T) {
 	source := "为顺利实现支护安全风险的全面无死角封盖，除要充分关注支护结构本体外，亦需要有意识将重点延伸至四周环境，真正做到统筹兼顾。"
 
-	got := textspan.Match(source, "封盖。", textspan.MatchOptions{Mode: textspan.MatchNormalized})
-	want := []textspan.MatchResult{
+	got := textprocessor.Match(source, "封盖。", textprocessor.MatchOptions{Mode: textprocessor.MatchNormalized})
+	want := []textprocessor.MatchResult{
 		{Text: "封盖，", Start: 17, End: 20},
 	}
 
@@ -77,11 +77,11 @@ func TestMatchNormalizedRecoversIgnoredQueryEdgeFromSource(t *testing.T) {
 func TestMatchBoundaryNoneDoesNotRecoverIgnoredQueryEdge(t *testing.T) {
 	source := "为顺利实现支护安全风险的全面无死角封盖，除要充分关注支护结构本体外，亦需要有意识将重点延伸至四周环境，真正做到统筹兼顾。"
 
-	got := textspan.Match(source, "封盖。", textspan.MatchOptions{
-		Mode:     textspan.MatchNormalized,
-		Boundary: textspan.MatchBoundaryNone,
+	got := textprocessor.Match(source, "封盖。", textprocessor.MatchOptions{
+		Mode:     textprocessor.MatchNormalized,
+		Boundary: textprocessor.MatchBoundaryNone,
 	})
-	want := []textspan.MatchResult{
+	want := []textprocessor.MatchResult{
 		{Text: "封盖", Start: 17, End: 19},
 	}
 
@@ -91,7 +91,7 @@ func TestMatchBoundaryNoneDoesNotRecoverIgnoredQueryEdge(t *testing.T) {
 }
 
 func TestMatchReturnsEmptySliceWhenFragmentIsAbsent(t *testing.T) {
-	got := textspan.Match("alpha beta", "gamma")
+	got := textprocessor.Match("alpha beta", "gamma")
 
 	if len(got) != 0 {
 		t.Fatalf("Match() = %#v, want empty slice", got)

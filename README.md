@@ -1,6 +1,6 @@
-# textspan
+# textprocessor
 
-`textspan` is a Go library for Chinese-English mixed text segmentation and
+`textprocessor` is a Go library for Chinese-English mixed text segmentation and
 source-span matching.
 
 ## Install
@@ -12,7 +12,7 @@ go get github.com/kiry163/textprocessor
 ## Sentence Segmentation
 
 ```go
-sentences := textspan.Sentences("这是第一句。This is sentence two.")
+sentences := textprocessor.Sentences("这是第一句。This is sentence two.")
 // []string{"这是第一句。", "This is sentence two."}
 ```
 
@@ -22,10 +22,10 @@ no language selector in the public API.
 ## Text Spans
 
 ```go
-spans := textspan.Segment("你好。Hello.", textspan.SegmentOptions{
+spans := textprocessor.Segment("你好。Hello.", textprocessor.SegmentOptions{
     MinChineseChars: 0,
 })
-// []textspan.Span{
+// []textprocessor.Span{
 //     {Text: "你好。", Start: 0, End: 3},
 //     {Text: "Hello.", Start: 3, End: 9},
 // }
@@ -38,7 +38,7 @@ Chinese spans are merged until they contain at least 50 Han characters. Use
 ## Document Blocks
 
 ```go
-blocks := textspan.Blocks(markdownText)
+blocks := textprocessor.Blocks(markdownText)
 ```
 
 `Blocks` splits Markdown-like text into structural blocks and returns rune
@@ -47,18 +47,18 @@ separate paragraph block. Use `ParagraphSplitByBlankLine` for Markdown-style
 blank-line paragraph grouping:
 
 ```go
-blocks := textspan.Blocks(markdownText, textspan.BlockOptions{
-    ParagraphSplit: textspan.ParagraphSplitByBlankLine,
+blocks := textprocessor.Blocks(markdownText, textprocessor.BlockOptions{
+    ParagraphSplit: textprocessor.ParagraphSplitByBlankLine,
 })
 ```
 
 `Blocks` emits:
 
 ```go
-textspan.BlockParagraph
-textspan.BlockTable
-textspan.BlockFormula
-textspan.BlockCode
+textprocessor.BlockParagraph
+textprocessor.BlockTable
+textprocessor.BlockFormula
+textprocessor.BlockCode
 ```
 
 Markdown pipe tables are recognized only when rows start and end with `|` and
@@ -70,8 +70,8 @@ recognized for `$$...$$`, `\[...\]`, and
 ## Source Matching
 
 ```go
-matches := textspan.Match("他说：Hello, world！", "Hello world")
-// []textspan.MatchResult{{Text: "Hello, world", Start: 3, End: 15}}
+matches := textprocessor.Match("他说：Hello, world！", "Hello world")
+// []textprocessor.MatchResult{{Text: "Hello, world", Start: 3, End: 15}}
 ```
 
 The default mode is `MatchSmart`: it returns exact matches first, and only
@@ -80,9 +80,9 @@ falls back to normalized matching when no exact match exists.
 Available modes:
 
 ```go
-textspan.MatchExact
-textspan.MatchNormalized
-textspan.MatchSmart
+textprocessor.MatchExact
+textprocessor.MatchNormalized
+textprocessor.MatchSmart
 ```
 
 `MatchExact` only searches exact source text. `MatchNormalized` ignores
@@ -95,9 +95,9 @@ result includes the source-side comma: `封盖，`. Disable this boundary recove
 when needed:
 
 ```go
-matches := textspan.Match(source, "封盖。", textspan.MatchOptions{
-    Mode:     textspan.MatchNormalized,
-    Boundary: textspan.MatchBoundaryNone,
+matches := textprocessor.Match(source, "封盖。", textprocessor.MatchOptions{
+    Mode:     textprocessor.MatchNormalized,
+    Boundary: textprocessor.MatchBoundaryNone,
 })
 ```
 
@@ -107,8 +107,8 @@ matches := textspan.Match(source, "封盖。", textspan.MatchOptions{
 original and revised string, then reports the changed range in the original:
 
 ```go
-result, err := textspan.TrimDifference("abc", "abXc")
-// result == textspan.TrimResult{
+result, err := textprocessor.TrimDifference("abc", "abXc")
+// result == textprocessor.TrimResult{
 //     Original: "b",
 //     Revised:  "bX",
 //     Start:    1,
@@ -126,10 +126,10 @@ uses the shared rune to its right. This default is `TrimEmptyOriginalPad`.
 Preserve the minimal empty range when needed:
 
 ```go
-result, err := textspan.TrimDifference("abc", "abXc", textspan.TrimOptions{
-    EmptyOriginal: textspan.TrimEmptyOriginalKeep,
+result, err := textprocessor.TrimDifference("abc", "abXc", textprocessor.TrimOptions{
+    EmptyOriginal: textprocessor.TrimEmptyOriginalKeep,
 })
-// result == textspan.TrimResult{
+// result == textprocessor.TrimResult{
 //     Original: "",
 //     Revised:  "X",
 //     Start:    2,
@@ -144,7 +144,7 @@ An empty original returns `ErrOriginalEmpty`. Identical inputs return
 ## CLI
 
 ```bash
-go run ./cmd/textspan input.txt
+go run ./cmd/textprocessor input.txt
 ```
 
 The default CLI output is JSON Lines:
@@ -157,23 +157,23 @@ The default CLI output is JSON Lines:
 Useful flags:
 
 ```bash
-go run ./cmd/textspan --sentences input.txt
-go run ./cmd/textspan --min-chinese-chars 0 input.txt
+go run ./cmd/textprocessor --sentences input.txt
+go run ./cmd/textprocessor --min-chinese-chars 0 input.txt
 ```
 
 Split document blocks:
 
 ```bash
-go run ./cmd/textspan blocks input.md
-go run ./cmd/textspan blocks --paragraph-split blank-line input.md
+go run ./cmd/textprocessor blocks input.md
+go run ./cmd/textprocessor blocks --paragraph-split blank-line input.md
 ```
 
 Match a query string against a source file:
 
 ```bash
-go run ./cmd/textspan match --mode smart source.txt "Hello world"
-go run ./cmd/textspan match --mode exact source.txt "Hello world"
-go run ./cmd/textspan match --mode normalized source.txt "Hello world"
+go run ./cmd/textprocessor match --mode smart source.txt "Hello world"
+go run ./cmd/textprocessor match --mode exact source.txt "Hello world"
+go run ./cmd/textprocessor match --mode normalized source.txt "Hello world"
 ```
 
 Quote the query when it contains spaces or shell-sensitive characters.

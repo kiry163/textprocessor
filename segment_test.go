@@ -1,4 +1,4 @@
-package textspan_test
+package textprocessor_test
 
 import (
 	"reflect"
@@ -10,8 +10,8 @@ import (
 func TestSegmentReturnsRuneOffsetsForChineseEnglishMixedText(t *testing.T) {
 	text := "你好。Hello."
 
-	got := textspan.Segment(text, textspan.SegmentOptions{MinChineseChars: 0})
-	want := []textspan.Span{
+	got := textprocessor.Segment(text, textprocessor.SegmentOptions{MinChineseChars: 0})
+	want := []textprocessor.Span{
 		{Text: "你好。", Start: 0, End: 3},
 		{Text: "Hello.", Start: 3, End: 9},
 	}
@@ -24,8 +24,8 @@ func TestSegmentReturnsRuneOffsetsForChineseEnglishMixedText(t *testing.T) {
 func TestSegmentSkipsBlankLinesAndPreservesLineOffsets(t *testing.T) {
 	text := "第一句。\n\nSecond line."
 
-	got := textspan.Segment(text, textspan.SegmentOptions{MinChineseChars: 0})
-	want := []textspan.Span{
+	got := textprocessor.Segment(text, textprocessor.SegmentOptions{MinChineseChars: 0})
+	want := []textprocessor.Span{
 		{Text: "第一句。", Start: 0, End: 4},
 		{Text: "Second line.", Start: 6, End: 18},
 	}
@@ -38,8 +38,8 @@ func TestSegmentSkipsBlankLinesAndPreservesLineOffsets(t *testing.T) {
 func TestSegmentMergesShortChineseSpansWithFollowingSpan(t *testing.T) {
 	text := "短句。第二个句子很长。Final."
 
-	got := textspan.Segment(text, textspan.SegmentOptions{MinChineseChars: 5})
-	want := []textspan.Span{
+	got := textprocessor.Segment(text, textprocessor.SegmentOptions{MinChineseChars: 5})
+	want := []textprocessor.Span{
 		{Text: "短句。第二个句子很长。", Start: 0, End: 11},
 		{Text: "Final.", Start: 11, End: 17},
 	}
