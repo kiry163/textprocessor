@@ -101,6 +101,68 @@ matches := textprocessor.Match(source, "封盖。", textprocessor.MatchOptions{
 })
 ```
 
+## Batch Matching
+
+`MatchBatch` searches for multiple exact strings with an Aho-Corasick matcher:
+
+```go
+matches, err := textprocessor.MatchBatch(
+    "Go 项目和 Go",
+    []string{"Go", "Go 项目", "Go"},
+)
+// []textprocessor.BatchMatchResult{
+//     {Query: "Go 项目", Text: "Go 项目", Start: 0, End: 5},
+//     {Query: "Go", Text: "Go", Start: 7, End: 9},
+// }
+```
+
+Duplicate queries are treated as one pattern. The default selection is
+non-overlapping leftmost-longest matching. Set `Overlapping` to include every
+matching pattern, including shorter patterns at the same source position:
+
+```go
+matches, err := textprocessor.MatchBatch(source, queries,
+    textprocessor.BatchMatchOptions{Overlapping: true},
+)
+```
+
+`BatchMatchOptions` also supports `ASCIIInsensitive` and `WholeWords`. `Query`
+is the compiled query string, while `Text` is the actual source substring. As
+with the other span APIs, `Start` and `End` are half-open rune offsets.
+
+Invalid query sets, including empty query lists and empty or invalid UTF-8
+queries, return an error matching `ErrInvalidBatchQueries`.
+
+## Unique Source Spans
+
+`BuildUniqueSpans` adds a substring that occurs exactly once in the source:
+
+```go
+uniqueSpans, err := textprocessor.BuildUniqueSpans(source, []textprocessor.Span{
+    {Text: "目标", Start: 2, End: 4},
+})
+// []textprocessor.UniqueSpan{
+//     {Text: "目标", Start: 2, End: 4, Unique: "目标"},
+// }
+```
+
+If `Text` already occurs once, `Unique` is unchanged. Otherwise, unresolved
+spans are matched in batches and expanded cumulatively by one rune, alternating
+left then right. At a source boundary, expansion automatically continues on
+the other side. `Unique` is the first substring on that expansion path that
+occurs once; it is not guaranteed to be the shortest possible unique
+substring. Occurrence counting includes overlapping matches.
+
+The source must be valid UTF-8. Every input must be a non-empty, valid source
+range and must satisfy:
+
+```go
+span.Text == string([]rune(source)[span.Start:span.End])
+```
+
+An invalid range or inconsistent text returns an error matching
+`ErrInvalidSpan`.
+
 ## Trim Difference
 
 `TrimDifference` removes the exact common rune prefix and suffix from an
