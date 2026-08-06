@@ -203,6 +203,74 @@ An empty original returns `ErrOriginalEmpty`. Identical inputs return
 `ErrNoChange`. Invalid strategy values return an error matching
 `ErrInvalidTrimOptions`; use `errors.Is` when branching on these errors.
 
+## Full Text Diff
+
+`Diff` returns the complete equal, inserted, and deleted sequence between two
+texts:
+
+```go
+parts, err := textprocessor.Diff("我喜欢苹果和香蕉", "我喜欢红苹果和葡萄")
+```
+
+Every `DiffPart` contains half-open rune ranges in both the original and
+revised text. Insertions have an empty original range, while deletions have an
+empty revised range. Concatenating equal and deleted parts reconstructs the
+original; concatenating equal and inserted parts reconstructs the revision.
+
+Semantic cleanup is enabled by default to favor readable edit boundaries. Use
+`DiffCleanupNone` when the engine's merged result is preferred:
+
+```go
+parts, err := textprocessor.Diff(original, revised, textprocessor.DiffOptions{
+    Cleanup: textprocessor.DiffCleanupNone,
+})
+```
+
+Set `Timeout` to limit expensive comparisons. A zero timeout has no limit.
+Inputs must be valid UTF-8. Invalid input and options return errors matching
+`ErrInvalidDiffInput` and `ErrInvalidDiffOptions` respectively.
+
+Render the sequence as escaped semantic HTML:
+
+```go
+fragment, err := textprocessor.RenderDiffHTML(parts)
+```
+
+The fragment uses a `<pre>` container together with `<span>`, `<ins>`, and
+`<del>` elements. `DefaultDiffHTMLCSS` provides ready-to-use styles. CSS class
+names can be replaced without changing the generated diff:
+
+```go
+fragment, err := textprocessor.RenderDiffHTML(parts, textprocessor.DiffHTMLStyle{
+    ContainerClass: "document-diff",
+    EqualClass:     "unchanged",
+    InsertClass:    "added",
+    DeleteClass:    "removed",
+})
+```
+
+`RenderDiffText` uses ANSI green and red by default. Supply a `DiffTextStyle`
+to use custom markers or omit unchanged text.
+
+To generate a complete standalone HTML document with UTF-8 metadata and a
+stylesheet, use `RenderDiffHTMLDocument`:
+
+```go
+document, err := textprocessor.RenderDiffHTMLDocument(parts,
+    textprocessor.DiffHTMLDocumentOptions{
+        Title: "Review",
+        Language: "zh-CN",
+        Theme: textprocessor.DiffHTMLThemeDark,
+    },
+)
+```
+
+Built-in themes are `DiffHTMLThemeLight`, `DiffHTMLThemeDark`, and
+`DiffHTMLThemeHighContrast`. `DiffHTMLThemeCSS` returns a theme stylesheet for
+embedding elsewhere. Add trusted CSS through `AdditionalCSS` when a theme
+needs application-specific overrides. HTML output contains only semantic
+elements and classes; it does not include source character offsets.
+
 ## CLI
 
 ```bash
