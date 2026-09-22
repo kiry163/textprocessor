@@ -19,6 +19,46 @@ sentences := textprocessor.Sentences("这是第一句。This is sentence two.")
 The default sentence rules are tuned for Chinese-English mixed text. There is
 no language selector in the public API.
 
+## Sentence At Position
+
+```go
+span, ok := textprocessor.SentenceAt("你好。Hello.", 5)
+// span == textprocessor.Span{Text: "Hello.", Start: 3, End: 9}
+// ok == true
+```
+
+`SentenceAt` returns the sentence containing one rune position. `pos` is a rune
+index and the result is a half-open `[Start, End)` range, so `pos` belongs to
+the sentence when `Start <= pos < End`: the first rune after a sentence belongs
+to the next one. Sentences are resolved per line, so a sentence never crosses a
+newline.
+
+The returned span is tight. It is neither merged with neighbouring short
+Chinese spans nor padded to the line edges, so it can be shorter than the span
+covering the same runes in `Segment`:
+
+```go
+text := "  缩进 你好。 尾随 "
+textprocessor.Segment(text, textprocessor.SegmentOptions{MinChineseChars: 0})
+// []textprocessor.Span{
+//     {Text: "  缩进 你好。 ", Start: 0, End: 9},
+//     {Text: "尾随 ", Start: 9, End: 12},
+// }
+```
+
+| Position | `SentenceAt` | covering `Segment` span |
+| --- | --- | --- |
+| `0`, `1` | not found (indentation) | `[0,9)` |
+| `2`–`7` | `[2,8)` `缩进 你好。` | `[0,9)` |
+| `8` | not found (space between sentences) | `[0,9)` |
+| `9`, `10` | `[9,11)` `尾随` | `[9,12)` |
+| `11`, `12` | not found (trailing space, end of text) | `[9,12)` |
+
+`ok` is `false` for every position that no sentence contains: negative or
+out-of-range positions, newline runes, blank lines, line indentation, and
+whitespace between or after sentences. The zero `Span` is returned alongside
+`false`.
+
 ## Text Spans
 
 ```go
