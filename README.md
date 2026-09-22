@@ -243,6 +243,45 @@ An empty original returns `ErrOriginalEmpty`. Identical inputs return
 `ErrNoChange`. Invalid strategy values return an error matching
 `ErrInvalidTrimOptions`; use `errors.Is` when branching on these errors.
 
+## Span Replacement
+
+`ReplaceSpans` replaces source ranges with new text and rewrites those ranges to
+the rune offsets the replacements occupy in the result:
+
+```go
+text, spans, err := textprocessor.ReplaceSpans("你好。Hello.", []textprocessor.ReplaceSpan[string]{
+    {ID: "s2", Start: 3, End: 9, Text: "Hello!"},
+    {ID: "s1", Start: 0, End: 3, Text: "你好！"},
+})
+// text  == "你好！Hello!"
+// spans == []textprocessor.ReplaceSpan[string]{
+//     {ID: "s1", Start: 0, End: 3, Text: "你好！"},
+//     {ID: "s2", Start: 3, End: 9, Text: "Hello!"},
+// }
+```
+
+`Start` and `End` are half-open rune offsets in the source, and `Text` is copied
+verbatim into the result. An empty range inserts text and an empty `Text`
+deletes the range; source text that no span covers, including the head and the
+tail, is kept unchanged. `ID` is caller-defined and returned unchanged, and the
+type parameter preserves its Go type.
+
+Parts are sorted in place by `Start` and `End`, so the returned slice shares the
+caller's backing array and holds the same elements in ascending order. Every
+returned part satisfies `Text == string([]rune(returned)[Start:End])`, which
+makes the result directly usable as the input of the next replacement pass:
+
+```go
+text, spans, err = textprocessor.ReplaceSpans(text, spans)
+```
+
+Ranges must not overlap: `[0,3)` and `[3,5)` may coexist, and an empty range at
+a boundary of another range is not an overlap, while `[0,3)` and `[2,5)` are.
+Invalid UTF-8 sources, out-of-range ranges, and overlapping ranges return an
+error matching `ErrInvalidReplaceSpan`. The call is all-or-nothing for
+coordinates: on error the caller's `Start` and `End` values are untouched,
+although an overlap error may already have sorted the slice.
+
 ## Full Text Diff
 
 `Diff` returns the complete equal, inserted, and deleted sequence between two
