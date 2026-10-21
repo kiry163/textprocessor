@@ -203,6 +203,32 @@ span.Text == string([]rune(source)[span.Start:span.End])
 An invalid range or inconsistent text returns an error matching
 `ErrInvalidSpan`.
 
+## Repeated Substrings
+
+`RepeatedSubstrings` finds supermaximal repeated substrings:
+
+```go
+repeats, err := textprocessor.RepeatedSubstrings("abcabcXabcabc", 3)
+// []string{"abcabc"}
+```
+
+A result occurs at least twice, is left- and right-maximal, and is not
+contained in any longer repeated substring. Overlapping occurrences count as
+repeats. Lengths are measured in runes. Results are ordered by length
+descending, then by first occurrence.
+
+```go
+textprocessor.RepeatedSubstrings("aaaa", 2)     // []string{"aaa"}
+textprocessor.RepeatedSubstrings("你好你好", 2) // []string{"你好"}
+```
+
+Input is limited to `textprocessor.MaxRepeatedSubstringRunes` runes
+(1,000,000). Invalid UTF-8, `minChars < 1`, and longer input return an error
+matching `ErrInvalidRepeatInput`. When nothing qualifies, the result is `nil`
+and the error is `nil`.
+
+Returned strings are substrings of the input and share its backing memory.
+
 ## Trim Difference
 
 `TrimDifference` removes the exact common rune prefix and suffix from an
