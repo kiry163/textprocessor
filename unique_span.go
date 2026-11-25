@@ -3,6 +3,8 @@ package textprocessor
 import (
 	"errors"
 	"fmt"
+	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/kiry163/ahocorasick"
@@ -31,16 +33,50 @@ type uniqueSpanCandidate struct {
 	patternIndex int
 }
 
+// UniqueSpanOptions controls how BuildUniqueSpansWithOptions decides and
+// reports unique spans.
+type UniqueSpanOptions struct {
+	// IgnoreWhitespace decides uniqueness after removing Unicode whitespace
+	// from both the source and every candidate, so a newline or space alone
+	// never makes a span unique. Unique stays an exact source substring, and
+	// whitespace added around the input span is trimmed.
+	IgnoreWhitespace bool
+
+	// MaxRunes caps Unique in runes. Zero means no cap. The cap is raised to
+	// the input span length when the span itself is longer. If the cap is
+	// reached without a unique candidate, the window at the cap is returned
+	// without a uniqueness guarantee.
+	MaxRunes int
+}
+
 // BuildUniqueSpans adds an exact source substring that uniquely identifies
 // every input span. Non-unique spans expand one rune at a time, alternating
 // left and right and falling back to the other side at a source boundary.
 func BuildUniqueSpans(source string, spans []Span) ([]UniqueSpan, error) {
+	return BuildUniqueSpansWithOptions(source, spans, UniqueSpanOptions{})
+}
+
+// BuildUniqueSpansWithOptions is BuildUniqueSpans with configurable uniqueness
+// and length rules.
+func BuildUniqueSpansWithOptions(source string, spans []Span, opts UniqueSpanOptions) ([]UniqueSpan, error) {
 	if !utf8.ValidString(source) {
 		return nil, fmt.Errorf("%w: source must be valid UTF-8", ErrInvalidSpan)
 	}
 	sourceRunes := []rune(source)
+	countSource := source
+	ignoreWhitespace := opts.IgnoreWhitespace
+	if ignoreWhitespace {
+		if normalized := removeWhitespace(source); normalized != "" {
+			countSource = normalized
+		} else {
+			// A source made only of whitespace has no content to compare;
+			// fall back to exact matching so the span can still resolve.
+			ignoreWhitespace = false
+		}
+	}
 	results := make([]UniqueSpan, len(spans))
 	states := make([]uniqueSpanState, len(spans))
+	limits := make([]int, len(spans))
 
 	for i, span := range spans {
 		if err := validateSourceSpan(sourceRunes, span); err != nil {
@@ -48,6 +84,7 @@ func BuildUniqueSpans(source string, spans []Span) ([]UniqueSpan, error) {
 		}
 		results[i] = UniqueSpan{Text: span.Text, Start: span.Start, End: span.End}
 		states[i] = uniqueSpanState{start: span.Start, end: span.End, expandLeft: true}
+		limits[i] = uniqueSpanLimit(span, opts.MaxRunes)
 	}
 
 	unresolved := len(spans)
@@ -67,11 +104,19 @@ func BuildUniqueSpans(source string, spans []Span) ([]UniqueSpan, error) {
 			}
 
 			candidateText := string(sourceRunes[state.start:state.end])
-			patternIndex, ok := patternIndexes[candidateText]
+			patternText := candidateText
+			if ignoreWhitespace {
+				// A candidate made only of whitespace has no content to compare;
+				// keep it exact so it never resolves through the stripped source.
+				if normalized := removeWhitespace(candidateText); normalized != "" {
+					patternText = normalized
+				}
+			}
+			patternIndex, ok := patternIndexes[patternText]
 			if !ok {
 				patternIndex = len(patterns)
-				patternIndexes[candidateText] = patternIndex
-				patterns = append(patterns, candidateText)
+				patternIndexes[patternText] = patternIndex
+				patterns = append(patterns, patternText)
 			}
 			candidates = append(candidates, uniqueSpanCandidate{
 				spanIndex:    i,
@@ -79,7 +124,7 @@ func BuildUniqueSpans(source string, spans []Span) ([]UniqueSpan, error) {
 			})
 		}
 
-		counts, err := countOverlappingPatterns(source, patterns)
+		counts, err := countOverlappingPatterns(countSource, patterns)
 		if err != nil {
 			return nil, err
 		}
@@ -88,9 +133,20 @@ func BuildUniqueSpans(source string, spans []Span) ([]UniqueSpan, error) {
 				continue
 			}
 			state := &states[candidate.spanIndex]
-			results[candidate.spanIndex].Unique = string(sourceRunes[state.start:state.end])
+			results[candidate.spanIndex].Unique = uniqueSpanText(sourceRunes, spans[candidate.spanIndex], state.start, state.end, ignoreWhitespace)
 			state.resolved = true
 			unresolved--
+		}
+		if opts.MaxRunes > 0 {
+			for i := range states {
+				state := &states[i]
+				if state.resolved || state.end-state.start < limits[i] {
+					continue
+				}
+				results[i].Unique = uniqueSpanText(sourceRunes, spans[i], state.start, state.end, ignoreWhitespace)
+				state.resolved = true
+				unresolved--
+			}
 		}
 		firstRound = false
 	}
@@ -142,4 +198,42 @@ func countOverlappingPatterns(source string, patterns []string) ([]int, error) {
 		counts[match.Pattern()]++
 	}
 	return counts, nil
+}
+
+// removeWhitespace deletes every Unicode whitespace rune. It is used both for
+// the counted source and for candidates so that a newline or space alone cannot
+// distinguish two occurrences.
+func removeWhitespace(s string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) {
+			return -1
+		}
+		return r
+	}, s)
+}
+
+// uniqueSpanLimit returns the rune cap for one span. Zero means uncapped; a
+// cap never shrinks the input span itself.
+func uniqueSpanLimit(span Span, maxRunes int) int {
+	if maxRunes <= 0 {
+		return 0
+	}
+	if length := span.End - span.Start; length > maxRunes {
+		return length
+	}
+	return maxRunes
+}
+
+// uniqueSpanText returns the window and, when whitespace is ignored, trims
+// whitespace added around the original span without touching the span itself.
+func uniqueSpanText(sourceRunes []rune, span Span, start, end int, ignoreWhitespace bool) string {
+	if ignoreWhitespace {
+		for start < span.Start && unicode.IsSpace(sourceRunes[start]) {
+			start++
+		}
+		for end > span.End && unicode.IsSpace(sourceRunes[end-1]) {
+			end--
+		}
+	}
+	return string(sourceRunes[start:end])
 }

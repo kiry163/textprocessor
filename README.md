@@ -193,6 +193,27 @@ the other side. `Unique` is the first substring on that expansion path that
 occurs once; it is not guaranteed to be the shortest possible unique
 substring. Occurrence counting includes overlapping matches.
 
+`BuildUniqueSpansWithOptions` accepts `UniqueSpanOptions`:
+
+- `IgnoreWhitespace`: uniqueness is decided after removing Unicode whitespace
+  from both the source and every candidate. A newline or space alone never
+  makes a window unique, so expansion continues. `Unique` remains an exact
+  source substring, and whitespace added around the input span is trimmed
+  without changing the span itself.
+- `MaxRunes`: caps `Unique` in runes. Zero means no cap, and the cap is raised
+  to the input span length when the span itself is longer. If no unique window
+  is found by the cap, the window at the cap is returned without a uniqueness
+  guarantee.
+
+```go
+uniqueSpans, err := textprocessor.BuildUniqueSpansWithOptions(source, spans,
+    textprocessor.UniqueSpanOptions{
+        IgnoreWhitespace: true,
+        MaxRunes:         50,
+    },
+)
+```
+
 The source must be valid UTF-8. Every input must be a non-empty, valid source
 range and must satisfy:
 
